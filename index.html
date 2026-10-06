@@ -153,7 +153,7 @@ footer a { color: inherit; }
 
   <div class="sticky">
     <div class="bar">
-      <a class="full-pdf" href="programacion-ficv2026.pdf" download title="Descargar la programación completa del festival en PDF">Programa completo (PDF)</a>
+      <a class="full-pdf" href="https://ficvaldivia.cl/wp-content/uploads/2026/10/PROGRAMA-33-FICVALDIVIA-2026_A.pdf" target="_blank" rel="noopener" title="Programa oficial del festival en PDF (52 MB)">Programa oficial (52 MB)</a>
       <button class="agenda-btn" id="agendaBtn">Ver mi agenda <span class="count" id="nPicks">0</span> <span aria-hidden="true">→</span></button>
     </div>
     <nav class="days" id="days" aria-label="Día"></nav>
@@ -269,7 +269,7 @@ const track = name => { try { window.goatcounter?.count?.({ path: name, title: n
 if (sharedKeys.size) addEventListener("load", () => track("abre-enlace-compartido"));
 document.addEventListener("click", e => {
   if (e.target.closest(".gcal")) track("google-calendar");
-  if (e.target.closest(".full-pdf")) track("programa-completo-pdf");
+  if (e.target.closest(".full-pdf")) track("programa-oficial-pdf");
   if (e.target.closest(".ficha")) track("ficha-festival");
 });
 const go = v => {

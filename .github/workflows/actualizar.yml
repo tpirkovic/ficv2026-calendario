@@ -26,12 +26,6 @@ jobs:
         if: steps.fecha.outputs.fin != '1'
         run: python3 actualizar.py
 
-      - name: Regenerar PDF de la programación completa
-        if: steps.fecha.outputs.fin != '1'
-        run: |
-          # Solo si cambiaron los datos: el PDF lleva la fecha del día y si no cambiaría siempre
-          git diff --quiet data.js img || python3 programa_pdf.py
-
       - name: Publicar cambios
         if: steps.fecha.outputs.fin != '1'
         run: |
