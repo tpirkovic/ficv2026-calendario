@@ -88,23 +88,20 @@ footer a { color: inherit; }
 .card > .gcal, .card > .pick { grid-column: 3; }
 .gcal { font-size: 12.5px; font-weight: 700; color: var(--ink); justify-self: end; }
 .card:has(.gcal) .pick { grid-row: 2; }
-.print-only { display: none; }
+.home { display: flex; align-items: center; gap: 14px; color: inherit; text-decoration: none; }
+.back { justify-self: start; background: none; border: 0; padding: 4px 0; font-weight: 900; font-size: 15px; }
+.back:hover { color: var(--coral); }
 
-@media print {
-  @page { size: A4; margin: 12mm; }
-  body { background: #fff; font-size: 11px; }
-  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .days, .actions, .filters, .banner, .login, .who, .pick, .gcal, footer, .toast { display: none !important; }
-  .top .in { padding: 8px 12px; }
-  .print-only { display: block; order: 3; margin: 0 0 0 auto; font-weight: 900; }
-  .wrap { padding: 8px 0 0; max-width: none; }
-  .list { display: block; columns: 2; column-gap: 8mm; }
-  h2.dayh { break-after: avoid; column-span: all; margin: 10px 0 6px; padding: 4px 8px; background: var(--yellow); }
-  .card { break-inside: avoid; grid-template-columns: 70px 1fr; gap: 8px; padding: 6px; margin-bottom: 6px; box-shadow: none; }
-  .card.on { box-shadow: none; border-color: var(--line); }
-  .card img { width: 70px; }
-  .card h3 { font-size: 12px; }
-}
+/* Hoja que se convierte en PDF (no se muestra en pantalla) */
+.pdf-sheet { width: 760px; background: #fff; font-size: 12px; }
+.pdf-sheet .top .in { padding: 10px 14px; max-width: none; }
+.pdf-sheet .pname { margin: 0 0 0 auto; font-weight: 900; text-align: right; }
+.pdf-sheet .list { padding: 6px 2px 0; gap: 6px; }
+.pdf-sheet h2.dayh { margin: 8px 0 0; padding: 4px 8px; background: var(--yellow); }
+.pdf-sheet .card { grid-template-columns: 90px 1fr; gap: 10px; padding: 8px; }
+.pdf-sheet .card.on { box-shadow: none; border-color: var(--line); }
+.pdf-sheet .card img { width: 90px; }
+.pdf-sheet :is(.pick, .gcal) { display: none; }
 
 @media (max-width: 560px) {
   .card { grid-template-columns: 84px 1fr; }
@@ -115,9 +112,8 @@ footer a { color: inherit; }
 </head>
 <body>
 <div class="top"><div class="in">
-  <p id="printHead" class="print-only"></p>
-  <img src="logo.png" alt="">
-  <h1>Mi FICValdivia<span>12–18 OCT. 2026</span></h1>
+  <a class="home" id="home" href="./" title="Volver al inicio"><img src="logo.png" alt="FICValdivia">
+  <h1>Mi FICValdivia<span>12–18 OCT. 2026</span></h1></a>
   <div class="who" id="who" hidden><span id="whoName"></span><button id="logout">Cambiar persona</button></div>
 </div></div>
 
@@ -133,12 +129,13 @@ footer a { color: inherit; }
 
   <nav class="days" id="days" aria-label="Día"></nav>
 
+  <button class="back" id="back" hidden>← Volver al calendario</button>
   <div class="actions" id="mineActions" hidden>
     <button class="btn alt" id="dl">Agregar a mi calendario</button>
     <button class="btn" id="pdf">Descargar como PDF</button>
     <button class="btn ghost" id="share">Copiar enlace a mi selección</button>
     <p><b>Agregar a mi calendario</b> descarga un archivo .ics: al abrirlo en iPhone, Mac u Outlook se agregan todas las funciones. En Android usa el botón “Google Calendar” de cada función, o en el computador: Google Calendar → Configuración → Importar.
-    <b>Descargar como PDF</b> abre la ventana de impresión: elige “Guardar como PDF”.
+    <b>Descargar como PDF</b> descarga tu agenda como archivo.
     El enlace sirve para pasar tu selección a otro dispositivo.</p>
   </div>
 
@@ -231,7 +228,15 @@ $("importBar").onclick = e => {
 
 // --- vistas ---
 $("days").innerHTML = `<button data-v="mine" class="mine"><small>Mi selección</small><b id="nPicks">0</b></button>` + DAYS.map(d => { const [w, n] = d.split(" "); return `<button data-v="${d}"><small>${w.slice(0, 3)}</small><b>${n}</b></button>`; }).join("");
-$("days").onclick = e => { const b = e.target.closest("button"); if (b) { view = b.dataset.v; store.set("ficv-view", view); render(); } };
+let lastDay = DAYS.includes(view) ? view : DAYS[0]; // día al que vuelve "Volver al calendario"
+const go = v => { view = v; if (DAYS.includes(v)) lastDay = v; store.set("ficv-view", view); render(); };
+$("days").onclick = e => { const b = e.target.closest("button"); if (b) go(b.dataset.v); };
+$("back").onclick = () => go(lastDay);
+$("home").onclick = e => { // inicio: primer día, sin filtros, arriba
+  e.preventDefault();
+  ["q", "fCat", "fSub", "fVenue", "fAcc"].forEach(id => $(id).value = "");
+  go(DAYS[0]); window.scrollTo(0, 0);
+};
 
 $("list").onclick = e => {
   const b = e.target.closest(".pick"); if (!b) return;
@@ -246,7 +251,25 @@ $("dl").onclick = () => {
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `ficv2026-${norm(user).replace(/[^a-z0-9]+/g, "-")}.ics` });
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
-$("pdf").onclick = () => { $("printHead").textContent = `Agenda de ${user} · ${picks.size} funciones`; window.print(); };
+const loadScript = src => new Promise((ok, fail) => document.head.append(Object.assign(document.createElement("script"), { src, onload: ok, onerror: fail })));
+$("pdf").onclick = async () => {
+  const btn = $("pdf"); btn.disabled = true; btn.textContent = "Generando PDF…";
+  try {
+    if (!window.html2pdf) await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js");
+    const sheet = Object.assign(document.createElement("div"), { className: "pdf-sheet", innerHTML:
+      `<div class="top"><div class="in"><img src="logo.png" alt=""><h1>Mi FICValdivia<span>12–18 OCT. 2026</span></h1>
+       <p class="pname">Agenda de ${esc(user)}<br>${picks.size} funciones</p></div></div>
+       <div class="list">${listHTML(SLOTS.filter(s => picks.has(s.key)), true)}</div>` });
+    await html2pdf().set({
+      filename: `calendario_${user.trim().replace(/[^\p{L}\p{N}]+/gu, "_")}.pdf`,
+      margin: [10, 10, 10, 10], image: { type: "jpeg", quality: 0.9 },
+      html2canvas: { scale: 2, scrollX: 0, scrollY: 0 }, // sin windowWidth: desplaza la captura
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"], avoid: [".card", "h2.dayh"] },
+    }).from(sheet).save();
+  } catch { toast("No se pudo generar el PDF. Revisa tu conexión e intenta de nuevo."); }
+  finally { btn.disabled = false; btn.textContent = "Descargar como PDF"; }
+};
 $("share").onclick = async () => {
   const url = `${location.origin}${location.pathname}#s=${[...picks].map(k => IDX.get(k).toString(36)).join(".")}`;
   try { await navigator.clipboard.writeText(url); toast("Enlace copiado"); } catch { prompt("Copia este enlace:", url); }
@@ -269,6 +292,7 @@ function render() {
   $("nPicks").textContent = picks.size;
   const mine = view === "mine";
   $("mineActions").hidden = !mine || !picks.size;
+  $("back").hidden = !mine;
   $("filters").hidden = mine;
 
   let shown;
@@ -283,6 +307,10 @@ function render() {
     $("list").innerHTML = `<p class="empty">${mine ? "Aún no eliges funciones. Ve a un día y toca “+ Agregar”." : "Ninguna función coincide con los filtros."}</p>`;
     return;
   }
+  $("list").innerHTML = listHTML(shown, mine);
+}
+
+function listHTML(shown, mine) {
   let html = "", lastDay = "";
   shown.forEach((s, i) => {
     if (mine && s.day !== lastDay) { const [w, n] = s.day.split(" "); html += `<h2 class="dayh">${w} <span>${n}</span></h2>`; lastDay = s.day; }
@@ -290,7 +318,7 @@ function render() {
     const clash = mine ? shown.slice(0, i).find(o => o.day === s.day && mins(o.time) + (o.dur || DURATION_MIN) > mins(s.time)) : null;
     html += card(s, clash);
   });
-  $("list").innerHTML = html;
+  return html;
 }
 
 function gcalUrl(s) { // un evento suelto en Google Calendar (sirve en Android, donde el .ics no se abre solo)
