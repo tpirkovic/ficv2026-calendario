@@ -7,4 +7,6 @@ para Google Calendar, Apple Calendar u Outlook.
 Sitio estático: `index.html` + `data.js` (programación) + `ics.js` (genera el calendario).
 Prueba del generador: `node ics.test.js`.
 
+Para actualizar la programación (horarios, duraciones, estado de cada función e imágenes nuevas): `python3 actualizar.py`, luego commit y push.
+
 Datos e imágenes: [33.ficvaldivia.cl/programacion](https://33.ficvaldivia.cl/programacion), al 5 de octubre de 2026. Sitio no oficial.
