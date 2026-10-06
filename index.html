@@ -42,7 +42,10 @@ button { cursor: pointer; }
 .banner .btn.skip { background: none; color: #fff; border: 1.5px solid #fff; }
 
 .sticky { position: sticky; top: 0; z-index: 3; background: var(--bg); padding-block: 8px; display: grid; gap: 8px; }
-.agenda-btn { justify-self: end; display: inline-flex; align-items: center; gap: 8px; background: var(--coral); color: #fff; border: 0; border-radius: 99px; padding: 7px 16px; font-weight: 900; }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.full-pdf { color: var(--ink); font-weight: 700; font-size: 13.5px; text-underline-offset: 3px; }
+.full-pdf:hover { color: var(--coral); }
+.agenda-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; background: var(--coral); color: #fff; border: 0; border-radius: 99px; padding: 7px 16px; font-weight: 900; }
 .agenda-btn .count { background: #fff; color: var(--coral); border-radius: 99px; min-width: 22px; padding: 0 6px; text-align: center; font-variant-numeric: tabular-nums; }
 .agenda-btn:hover { background: var(--ink); }
 .agenda-btn:hover .count { color: var(--ink); }
@@ -113,6 +116,8 @@ footer a { color: inherit; }
 .pdf-sheet :is(.pick, .gcal, .ficha) { display: none; }
 
 @media (max-width: 560px) {
+  .full-pdf { font-size: 12.5px; }
+  .agenda-btn { padding: 6px 12px; gap: 6px; }
   .card { grid-template-columns: 84px 1fr; }
   .card img { width: 84px; }
   .card > .pick, .card > .gcal { grid-column: 1 / -1; grid-row: auto; justify-self: start; }
@@ -137,7 +142,10 @@ footer a { color: inherit; }
   <div class="banner" id="importBar" hidden></div>
 
   <div class="sticky">
-    <button class="agenda-btn" id="agendaBtn">Ver mi agenda <span class="count" id="nPicks">0</span> <span aria-hidden="true">→</span></button>
+    <div class="bar">
+      <a class="full-pdf" href="programacion-ficv2026.pdf" download title="Descargar la programación completa del festival en PDF">Programa completo (PDF)</a>
+      <button class="agenda-btn" id="agendaBtn">Ver mi agenda <span class="count" id="nPicks">0</span> <span aria-hidden="true">→</span></button>
+    </div>
     <nav class="days" id="days" aria-label="Día"></nav>
   </div>
 
