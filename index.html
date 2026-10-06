@@ -40,7 +40,6 @@ a.btn { text-decoration: none; display: inline-block; }
 
 .banner { background: var(--ink); color: #fff; border-radius: 10px; padding: 12px 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .banner .btn { background: var(--yellow); color: var(--ink); padding: 6px 12px; }
-.banner .btn.skip { background: none; color: #fff; border: 1.5px solid #fff; }
 
 .sticky { position: sticky; top: 0; z-index: 3; background: var(--bg); padding-block: 8px; display: grid; gap: 8px; }
 .bar { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
@@ -139,7 +138,7 @@ footer a { color: inherit; }
     <div class="known" id="known"></div>
   </section>
 
-  <div class="banner" id="importBar" hidden></div>
+  <div class="banner" id="friendBar" hidden></div>
 
   <div class="sticky">
     <div class="bar">
@@ -154,10 +153,10 @@ footer a { color: inherit; }
     <button class="btn alt" id="dl">Agregar a mi calendario</button>
     <button class="btn" id="pdf">Descargar como PDF</button>
     <a class="btn alt" id="pdfReady" hidden></a>
-    <button class="btn ghost" id="share">Copiar enlace a mi selección</button>
+    <button class="btn ghost" id="share">Compartir mi selección</button>
     <p><b>Agregar a mi calendario</b> descarga un archivo .ics: al abrirlo en iPhone, Mac u Outlook se agregan todas las funciones. En Android usa el botón “Google Calendar” de cada función, o en el computador: Google Calendar → Configuración → Importar.
     <b>Descargar como PDF</b> descarga tu agenda como archivo.
-    El enlace sirve para pasar tu selección a otro dispositivo.</p>
+    <b>Compartir mi selección</b> crea un enlace para que otras personas vean tus funciones; no se agregan a su agenda.</p>
   </div>
 
   <div class="filters" id="filters">
@@ -241,20 +240,19 @@ $("loginForm").onsubmit = e => { e.preventDefault(); if ($("name").value.trim())
 $("logout").onclick = () => { user = null; store.set("ficv-user", null); loadPicks(); renderAll(); };
 $("known").onclick = e => { const b = e.target.closest("button"); if (b) setUser(b.dataset.name); };
 
-// --- importar desde enlace (#s=índices en base 36) ---
-const shared = (location.hash.match(/^#s=([0-9a-z.]+)$/) || [])[1];
-const sharedKeys = shared ? shared.split(".").map(x => SLOTS[parseInt(x, 36)]?.key).filter(Boolean) : [];
-let importDone = !sharedKeys.length;
-$("importBar").onclick = e => {
-  const act = e.target.dataset.act; if (!act) return;
-  if (act === "yes") { sharedKeys.forEach(k => picks.add(k)); savePicks(); toast(`Se agregaron ${sharedKeys.length} funciones`); view = "mine"; }
-  importDone = true; history.replaceState(null, "", location.pathname); renderAll();
-};
+// --- selección compartida (#s=índices en base 36&n=nombre): solo para ver, no se copia a la agenda propia ---
+const sharedMatch = location.hash.match(/^#s=([0-9a-z.]*)(?:&n=([^&]*))?$/);
+const sharedKeys = new Set(sharedMatch ? sharedMatch[1].split(".").map(x => SLOTS[parseInt(x, 36)]?.key).filter(Boolean) : []);
+let sharedName = ""; try { sharedName = decodeURIComponent(sharedMatch?.[2] || "").slice(0, 40); } catch {}
 
 // --- vistas ---
 $("days").innerHTML = DAYS.map(d => { const [w, n] = d.split(" "); return `<button data-v="${d}"><small>${w.slice(0, 3)}</small><b>${n}</b></button>`; }).join("");
 let lastDay = DAYS.includes(view) ? view : DAYS[0]; // día al que vuelve "Volver al calendario"
-const go = v => { view = v; if (DAYS.includes(v)) lastDay = v; store.set("ficv-view", view); render(); };
+if (sharedKeys.size) view = "friend";
+const go = v => {
+  if (view === "friend" && v !== "friend") history.replaceState(null, "", location.pathname + location.search);
+  view = v; if (DAYS.includes(v)) lastDay = v; if (v !== "friend") store.set("ficv-view", view); render();
+};
 $("days").onclick = e => { const b = e.target.closest("button"); if (b) go(b.dataset.v); };
 $("agendaBtn").onclick = () => { go("mine"); window.scrollTo(0, 0); };
 $("back").onclick = () => go(lastDay);
@@ -266,7 +264,7 @@ $("home").onclick = e => { // inicio: primer día, sin filtros, arriba
 
 $("list").onclick = e => {
   const b = e.target.closest(".pick"); if (!b) return;
-  if (!user) { $("name").focus(); toast("Escribe tu nombre para guardar tu selección"); return; }
+  if (!user) { if (view === "friend") go(lastDay); $("name").focus(); toast("Escribe tu nombre para guardar tu selección"); return; }
   const k = b.dataset.key, adding = !picks.has(k);
   adding ? picks.add(k) : picks.delete(k); savePicks(); render();
   if (adding && view !== "mine") {
@@ -332,33 +330,37 @@ $("pdf").onclick = async () => {
   finally { host.remove(); btn.disabled = false; btn.textContent = "Descargar como PDF"; }
 };
 $("share").onclick = async () => {
-  const url = `${location.origin}${location.pathname}#s=${[...picks].map(k => IDX.get(k).toString(36)).join(".")}`;
+  const url = `${location.origin}${location.pathname}#s=${[...picks].map(k => IDX.get(k).toString(36)).join(".")}&n=${encodeURIComponent(user)}`;
+  if (navigator.share) { // celular: menú de compartir del sistema (WhatsApp, mensajes…)
+    try { await navigator.share({ title: "Mi FICValdivia 2026", text: `La selección de ${user} para FICValdivia 2026`, url }); return; }
+    catch (e) { if (e.name === "AbortError") return; }
+  }
   try { await navigator.clipboard.writeText(url); toast("Enlace copiado"); } catch { prompt("Copia este enlace:", url); }
 };
 
 function renderAll() {
-  $("login").hidden = !!user; $("who").hidden = !user; $("whoName").textContent = user ? `Hola, ${user}` : "";
+  $("who").hidden = !user; $("whoName").textContent = user ? `Hola, ${user}` : "";
   const users = store.get("ficv-users", []);
   $("known").innerHTML = users.length ? "En este navegador: " + users.map(u => `<button type="button" data-name="${esc(u)}">${esc(u)}</button>`).join("") : "";
-  const bar = $("importBar");
-  bar.hidden = importDone || !user;
-  bar.innerHTML = `<span>Este enlace trae ${sharedKeys.length} funciones. ¿Agregarlas a la selección de ${esc(user || "")}?</span>
-    <button class="btn" data-act="yes">Agregar</button><button class="btn skip" data-act="no">Ignorar</button>`;
   render();
 }
 
 function render() {
-  if (view !== "mine" && !DAYS.includes(view)) view = DAYS[0];
+  if (!["mine", "friend"].includes(view) && !DAYS.includes(view)) view = DAYS[0];
   for (const b of $("days").children) b.setAttribute("aria-pressed", b.dataset.v === view);
   $("nPicks").textContent = picks.size;
   $("agendaBtn").hidden = view === "mine";
-  const mine = view === "mine";
+  const mine = view === "mine", friend = view === "friend", agenda = mine || friend;
   $("mineActions").hidden = !mine || !picks.size;
-  $("back").hidden = !mine;
-  $("filters").hidden = mine;
+  $("back").hidden = !agenda;
+  $("filters").hidden = agenda;
+  $("login").hidden = !!user || friend;
+  $("friendBar").hidden = !friend;
+  if (friend) $("friendBar").innerHTML = `<span>${sharedName ? `Esta es la selección de <b>${esc(sharedName)}</b>` : "Esta es una selección compartida"} · ${sharedKeys.size} funciones</span>`;
 
   let shown;
   if (mine) shown = SLOTS.filter(s => picks.has(s.key));
+  else if (friend) shown = SLOTS.filter(s => sharedKeys.has(s.key));
   else {
     const q = norm($("q").value.trim()), cat = $("fCat").value, sub = $("fSub").value, venue = $("fVenue").value, acc = $("fAcc").value;
     shown = SLOTS.filter(s => s.day === view && (!venue || s.venue === venue) && s.films.some(f =>
@@ -366,17 +368,17 @@ function render() {
       && (!q || norm(`${f.t} ${f.d} ${f.p} ${f.s}`).includes(q))));
   }
   if (!shown.length) {
-    $("list").innerHTML = `<p class="empty">${mine ? "Aún no eliges funciones. Ve a un día y toca “+ Agregar”." : "Ninguna función coincide con los filtros."}</p>`;
+    $("list").innerHTML = `<p class="empty">${friend ? "Este enlace no trae funciones." : mine ? "Aún no eliges funciones. Ve a un día y toca “+ Agregar”." : "Ninguna función coincide con los filtros."}</p>`;
     return;
   }
-  $("list").innerHTML = listHTML(shown, mine);
+  $("list").innerHTML = listHTML(shown, agenda, mine);
 }
 
-function listHTML(shown, mine) {
+function listHTML(shown, mine, clashes = mine) { // mine: agrupar por día; clashes: marcar choques
   let html = "", lastDay = "";
   shown.forEach((s, i) => {
     // choque = alguna función anterior elegida ese día termina después de que esta empieza
-    const clash = mine ? shown.slice(0, i).find(o => o.day === s.day && mins(o.time) + (o.dur || DURATION_MIN) > mins(s.time)) : null;
+    const clash = clashes ? shown.slice(0, i).find(o => o.day === s.day && mins(o.time) + (o.dur || DURATION_MIN) > mins(s.time)) : null;
     if (mine && s.day !== lastDay) { // título del día + su primera función juntos, para que el PDF no deje el título solo
       const [w, n] = s.day.split(" "); lastDay = s.day;
       html += `<div class="keep"><h2 class="dayh">${w} <span>${n}</span></h2>${card(s, clash)}</div>`;
