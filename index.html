@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mi FICValdivia 2026</title>
+<meta name="description" content="Arma tu agenda del 33 Festival Internacional de Cine de Valdivia y llévala a tu calendario.">
+<link rel="icon" href="logo.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap">
+<style>
+:root { --yellow: #F0E04A; --coral: #D4625F; --ink: #1F1E21; --muted: #5f5d63; --line: #e6e3d8; --bg: #faf9f4; --card: #fff; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 Lato, "Helvetica Neue", Arial, sans-serif; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--coral); outline-offset: 2px; }
+
+.top { background: var(--yellow); }
+.top .in { max-width: 980px; margin: 0 auto; padding: 14px 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.top img { width: 54px; }
+.top h1 { margin: 0; font-weight: 900; font-size: clamp(20px, 4vw, 28px); line-height: 1; text-transform: uppercase; letter-spacing: .04em; }
+.top h1 span { display: block; color: var(--coral); font-size: .55em; letter-spacing: .03em; margin-top: 4px; }
+.who { margin-left: auto; display: flex; gap: 8px; align-items: center; font-weight: 700; }
+.who button { background: none; border: 1.5px solid var(--ink); border-radius: 99px; padding: 3px 12px; font-size: 13px; font-weight: 700; }
+
+.wrap { max-width: 980px; margin: 0 auto; padding: 16px 16px 80px; display: grid; gap: 14px; }
+
+.login { background: var(--card); border: 2px solid var(--ink); border-radius: 12px; padding: 18px; display: grid; gap: 10px; }
+.login h2 { margin: 0; font-weight: 900; font-size: 20px; }
+.login p { margin: 0; color: var(--muted); }
+.login form { display: flex; gap: 8px; flex-wrap: wrap; }
+.login input { flex: 1 1 220px; padding: 10px 12px; border: 1.5px solid var(--ink); border-radius: 8px; background: #fff; }
+.btn { background: var(--ink); color: var(--yellow); border: 0; border-radius: 8px; padding: 10px 16px; font-weight: 900; }
+.btn.alt { background: var(--coral); color: #fff; }
+.btn.ghost { background: none; color: var(--ink); border: 1.5px solid var(--ink); }
+.known { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: 13px; }
+.known button { background: var(--yellow); border: 0; border-radius: 99px; padding: 3px 10px; font-weight: 700; }
+
+.banner { background: var(--ink); color: #fff; border-radius: 10px; padding: 12px 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.banner .btn { background: var(--yellow); color: var(--ink); padding: 6px 12px; }
+.banner .btn.skip { background: none; color: #fff; border: 1.5px solid #fff; }
+
+.days { display: flex; gap: 6px; overflow-x: auto; position: sticky; top: 0; z-index: 3; background: var(--bg); padding-block: 8px; }
+.days button { flex: 1 0 auto; min-width: 60px; border: 1.5px solid var(--ink); background: var(--card); border-radius: 10px; padding: 5px 10px; display: grid; line-height: 1.1; }
+.days small { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+.days b { font-weight: 900; font-size: 20px; }
+.days button[aria-pressed="true"] { background: var(--ink); color: var(--yellow); }
+.days .mine { background: var(--coral); border-color: var(--coral); color: #fff; min-width: 110px; }
+.days .mine[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); }
+
+.filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+.filters input, .filters select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); min-width: 0; }
+.filters input { grid-column: 1 / -1; }
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.actions p { margin: 0; color: var(--muted); font-size: 13px; flex-basis: 100%; }
+
+h2.dayh { margin: 10px 0 0; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; font-size: 18px; }
+h2.dayh span { color: var(--coral); }
+.list { display: grid; gap: 10px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: grid; grid-template-columns: 120px 1fr auto; gap: 12px; align-items: start; }
+.card.on { border-color: var(--coral); box-shadow: inset 4px 0 0 var(--coral); }
+.card img { width: 120px; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 6px; background: var(--line); max-width: 100%; }
+.info { min-width: 0; }
+.when { margin: 0; font-size: 13px; color: var(--muted); }
+.when b { background: var(--ink); color: var(--yellow); border-radius: 4px; padding: 1px 6px; margin-right: 4px; font-variant-numeric: tabular-nums; }
+.card h3 { margin: 4px 0 2px; font-weight: 900; font-size: 16px; line-height: 1.25; }
+.card h3 small { color: var(--coral); font-size: 12px; }
+.by { margin: 0; color: var(--muted); font-size: 13px; }
+.card ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
+.card ul span { color: var(--muted); }
+.tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.tag { font-size: 11.5px; font-weight: 700; padding: 1px 8px; border-radius: 99px; border: 1px solid transparent; }
+.tag.sub { border-color: var(--ink); }
+.tag.acc { border-color: var(--muted); color: var(--muted); }
+.tag.acc.free { border-color: var(--coral); color: var(--coral); }
+.pick { border: 1.5px solid var(--ink); background: none; border-radius: 99px; padding: 5px 12px; font-weight: 900; font-size: 13px; white-space: nowrap; }
+.card.on .pick { background: var(--coral); border-color: var(--coral); color: #fff; }
+.clash { color: var(--coral); font-weight: 700; font-size: 12.5px; margin: 4px 0 0; }
+.empty { color: var(--muted); text-align: center; padding: 30px 0; }
+footer { color: var(--muted); font-size: 12.5px; }
+footer a { color: inherit; }
+.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: var(--yellow); padding: 10px 16px; border-radius: 8px; font-weight: 700; }
+
+@media (max-width: 560px) {
+  .card { grid-template-columns: 84px 1fr; }
+  .card img { width: 84px; }
+  .pick { grid-column: 1 / -1; justify-self: start; }
+}
+</style>
+</head>
+<body>
+<div class="top"><div class="in">
+  <img src="logo.png" alt="">
+  <h1>Mi FICValdivia<span>12–18 OCT. 2026</span></h1>
+  <div class="who" id="who" hidden><span id="whoName"></span><button id="logout">Cambiar persona</button></div>
+</div></div>
+
+<div class="wrap">
+  <section class="login" id="login" hidden>
+    <h2>¿Cómo te llamas?</h2>
+    <p>Tu nombre identifica tu selección en este navegador. No hay contraseña ni cuenta.</p>
+    <form id="loginForm"><input id="name" autocomplete="given-name" placeholder="Tu nombre" required maxlength="40"><button class="btn">Entrar</button></form>
+    <div class="known" id="known"></div>
+  </section>
+
+  <div class="banner" id="importBar" hidden></div>
+
+  <nav class="days" id="days" aria-label="Día"></nav>
+
+  <div class="actions" id="mineActions" hidden>
+    <button class="btn alt" id="dl">Descargar calendario (.ics)</button>
+    <button class="btn ghost" id="share">Copiar enlace a mi selección</button>
+    <p>El archivo .ics se abre con Google Calendar, Apple Calendar u Outlook. En Google Calendar en el computador: Configuración → Importar y exportar → Importar. El enlace sirve para pasar tu selección a otro dispositivo.</p>
+  </div>
+
+  <div class="filters" id="filters">
+    <input id="q" type="search" placeholder="Buscar película, dirección o país">
+    <select id="fCat" aria-label="Categoría"><option value="">Todas las categorías</option></select>
+    <select id="fSub" aria-label="Sub categoría"><option value="">Todas las sub categorías</option></select>
+    <select id="fVenue" aria-label="Sala"><option value="">Todas las salas</option></select>
+    <select id="fAcc" aria-label="Acceso"><option value="">Todo tipo de acceso</option></select>
+  </div>
+
+  <main id="list" class="list"></main>
+
+  <footer>Datos de <a href="https://33.ficvaldivia.cl/programacion">33.ficvaldivia.cl/programacion</a> al 5 de octubre de 2026. Los horarios pueden cambiar: revisa la web oficial. Tu selección se guarda solo en este navegador. Sitio no oficial.</footer>
+</div>
+
+<script src="data.js"></script>
+<script src="ics.js"></script>
+<script>
+const DAYS = ["Lunes 12", "Martes 13", "Miércoles 14", "Jueves 15", "Viernes 16", "Sábado 17", "Domingo 18"];
+const CAT = { // color de fondo, color de texto (paleta del logo + derivados)
+  "En Competencia": ["#D4625F", "#fff"], "Filmes de Apertura y Clausura": ["#1F1E21", "#F0E04A"],
+  "Muestra de Cine Contemporáneo": ["#2F6F6B", "#fff"], "Muestra de Cine Chileno": ["#3B5A9A", "#fff"],
+  "Cineastas en Foco": ["#7A3E6E", "#fff"], "Muestra Contraplanos de la Historia": ["#8A5A2B", "#fff"],
+  "Nuevas Narrativas": ["#C98A1A", "#1F1E21"], "Pásate una Película": ["#E9A49F", "#1F1E21"],
+  "Actividades Paralelas": ["#8C8A84", "#fff"], "Ceremonias": ["#F0E04A", "#1F1E21"],
+};
+const ACC = { "Entrada Liberada": "Liberada", "Con Entrada o Acreditación": "Entrada / Acreditación",
+  "Con Inscripción Previa": "Inscripción previa", "Solo con Invitación": "Solo invitación" };
+
+// Una función = día + hora + sala; los programas de cortos comparten función.
+const byKey = new Map();
+for (const [id, t, d, c, s, a, p, fs] of FILMS) for (const f of fs) {
+  const [day, time, ...v] = f.split(" - "), venue = v.join(" - "), hhmm = time.padStart(5, "0");
+  const key = `${day}|${hhmm}|${venue}`;
+  if (!byKey.has(key)) byKey.set(key, { key, day, time: hhmm, venue, films: [] });
+  byKey.get(key).films.push({ id, t, d, c, s, a, p });
+}
+const SLOTS = [...byKey.values()].sort((x, y) => DAYS.indexOf(x.day) - DAYS.indexOf(y.day) || x.time.localeCompare(y.time) || x.venue.localeCompare(y.venue));
+const IDX = new Map(SLOTS.map((s, i) => [s.key, i]));
+
+// --- almacenamiento local (por nombre) ---
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} },
+};
+let user = store.get("ficv-user", null);
+let picks = new Set();
+let view = store.get("ficv-view", DAYS[0]);
+const loadPicks = () => { picks = new Set(user ? store.get("ficv-picks:" + user.toLowerCase(), []).filter(k => byKey.has(k)) : []); };
+const savePicks = () => store.set("ficv-picks:" + user.toLowerCase(), [...picks]);
+
+// --- utilidades ---
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const mins = t => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+function toast(msg) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 2600); }
+
+// --- filtros ---
+const uniq = a => [...new Set(a)].filter(Boolean).sort((x, y) => x.localeCompare(y, "es"));
+const fill = (id, vals, label = v => v) => vals.forEach(v => $(id).insertAdjacentHTML("beforeend", `<option value="${esc(v)}">${esc(label(v))}</option>`));
+fill("fCat", Object.keys(CAT));
+fill("fSub", uniq(FILMS.flatMap(f => f[4].split(", "))));
+fill("fVenue", uniq(SLOTS.map(s => s.venue)));
+fill("fAcc", Object.keys(ACC), v => ACC[v]);
+["q", "fCat", "fSub", "fVenue", "fAcc"].forEach(id => $(id).addEventListener("input", render));
+
+// --- usuario ---
+function setUser(name) {
+  user = name.trim().slice(0, 40);
+  const users = store.get("ficv-users", []);
+  if (!users.some(u => u.toLowerCase() === user.toLowerCase())) store.set("ficv-users", [...users, user]);
+  store.set("ficv-user", user); loadPicks(); renderAll();
+}
+$("loginForm").onsubmit = e => { e.preventDefault(); if ($("name").value.trim()) setUser($("name").value); };
+$("logout").onclick = () => { user = null; store.set("ficv-user", null); loadPicks(); renderAll(); };
+$("known").onclick = e => { const b = e.target.closest("button"); if (b) setUser(b.dataset.name); };
+
+// --- importar desde enlace (#s=índices en base 36) ---
+const shared = (location.hash.match(/^#s=([0-9a-z.]+)$/) || [])[1];
+const sharedKeys = shared ? shared.split(".").map(x => SLOTS[parseInt(x, 36)]?.key).filter(Boolean) : [];
+let importDone = !sharedKeys.length;
+$("importBar").onclick = e => {
+  const act = e.target.dataset.act; if (!act) return;
+  if (act === "yes") { sharedKeys.forEach(k => picks.add(k)); savePicks(); toast(`Se agregaron ${sharedKeys.length} funciones`); view = "mine"; }
+  importDone = true; history.replaceState(null, "", location.pathname); renderAll();
+};
+
+// --- vistas ---
+$("days").innerHTML = `<button data-v="mine" class="mine"><small>Mi selección</small><b id="nPicks">0</b></button>` + DAYS.map(d => { const [w, n] = d.split(" "); return `<button data-v="${d}"><small>${w.slice(0, 3)}</small><b>${n}</b></button>`; }).join("");
+$("days").onclick = e => { const b = e.target.closest("button"); if (b) { view = b.dataset.v; store.set("ficv-view", view); render(); } };
+
+$("list").onclick = e => {
+  const b = e.target.closest(".pick"); if (!b) return;
+  if (!user) { $("name").focus(); toast("Escribe tu nombre para guardar tu selección"); return; }
+  const k = b.dataset.key; picks.has(k) ? picks.delete(k) : picks.add(k); savePicks(); render();
+};
+
+$("dl").onclick = () => {
+  const chosen = SLOTS.filter(s => picks.has(s.key));
+  if (!chosen.length) return toast("Aún no seleccionas funciones");
+  const blob = new Blob([buildICS(chosen, user)], { type: "text/calendar;charset=utf-8" });
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `ficv2026-${norm(user).replace(/[^a-z0-9]+/g, "-")}.ics` });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$("share").onclick = async () => {
+  const url = `${location.origin}${location.pathname}#s=${[...picks].map(k => IDX.get(k).toString(36)).join(".")}`;
+  try { await navigator.clipboard.writeText(url); toast("Enlace copiado"); } catch { prompt("Copia este enlace:", url); }
+};
+
+function renderAll() {
+  $("login").hidden = !!user; $("who").hidden = !user; $("whoName").textContent = user ? `Hola, ${user}` : "";
+  const users = store.get("ficv-users", []);
+  $("known").innerHTML = users.length ? "En este navegador: " + users.map(u => `<button type="button" data-name="${esc(u)}">${esc(u)}</button>`).join("") : "";
+  const bar = $("importBar");
+  bar.hidden = importDone || !user;
+  bar.innerHTML = `<span>Este enlace trae ${sharedKeys.length} funciones. ¿Agregarlas a la selección de ${esc(user || "")}?</span>
+    <button class="btn" data-act="yes">Agregar</button><button class="btn skip" data-act="no">Ignorar</button>`;
+  render();
+}
+
+function render() {
+  if (view !== "mine" && !DAYS.includes(view)) view = DAYS[0];
+  for (const b of $("days").children) b.setAttribute("aria-pressed", b.dataset.v === view);
+  $("nPicks").textContent = picks.size;
+  const mine = view === "mine";
+  $("mineActions").hidden = !mine || !picks.size;
+  $("filters").hidden = mine;
+
+  let shown;
+  if (mine) shown = SLOTS.filter(s => picks.has(s.key));
+  else {
+    const q = norm($("q").value.trim()), cat = $("fCat").value, sub = $("fSub").value, venue = $("fVenue").value, acc = $("fAcc").value;
+    shown = SLOTS.filter(s => s.day === view && (!venue || s.venue === venue) && s.films.some(f =>
+      (!cat || f.c === cat) && (!sub || f.s.split(", ").includes(sub)) && (!acc || f.a.includes(acc))
+      && (!q || norm(`${f.t} ${f.d} ${f.p} ${f.s}`).includes(q))));
+  }
+  if (!shown.length) {
+    $("list").innerHTML = `<p class="empty">${mine ? "Aún no eliges funciones. Ve a un día y toca “+ Agregar”." : "Ninguna función coincide con los filtros."}</p>`;
+    return;
+  }
+  let html = "", lastDay = "";
+  shown.forEach((s, i) => {
+    if (mine && s.day !== lastDay) { const [w, n] = s.day.split(" "); html += `<h2 class="dayh">${w} <span>${n}</span></h2>`; lastDay = s.day; }
+    // ponytail: choque = otra función elegida que empieza a menos de 2 h el mismo día (no hay duraciones reales)
+    const prev = shown[i - 1], clash = mine && prev && prev.day === s.day && mins(s.time) - mins(prev.time) < DURATION_MIN;
+    html += card(s, clash ? prev : null);
+  });
+  $("list").innerHTML = html;
+}
+
+function card(s, clash) {
+  const on = picks.has(s.key), f0 = s.films[0], many = s.films.length > 1;
+  const cats = uniq(s.films.map(f => f.c)), subs = uniq(s.films.map(f => f.s)), accs = uniq(s.films.flatMap(f => f.a));
+  const tags = cats.map(c => { const [bg, fg] = CAT[c] || ["#ccc", "#000"]; return `<span class="tag" style="background:${bg};color:${fg};border-color:${c === "Ceremonias" ? "#1F1E21" : bg}">${esc(c)}</span>`; })
+    .concat(subs.filter(x => !cats.includes(x)).map(x => `<span class="tag sub">${esc(x)}</span>`))
+    .concat(accs.map(a => `<span class="tag acc${a === "Entrada Liberada" ? " free" : ""}">${esc(ACC[a] || a)}</span>`)).join("");
+  const body = many
+    ? `<h3>${esc(f0.s || f0.c)} <small>· ${s.films.length} obras</small></h3><ul>${s.films.map(f => `<li>${esc(f.t)}${f.d ? ` <span>· ${esc(f.d)}</span>` : ""}</li>`).join("")}</ul>`
+    : `<h3>${esc(f0.t)}</h3><p class="by">${[f0.d, f0.p].filter(Boolean).map(esc).join(" · ")}</p>`;
+  return `<article class="card${on ? " on" : ""}"><img src="img/${f0.id}.jpg" alt="" loading="lazy">
+    <div class="info"><p class="when"><b>${s.time}</b>${esc(s.venue)}</p>${body}<div class="tags">${tags}</div>
+    ${clash ? `<p class="clash">Puede chocar con “${esc(clash.films.length > 1 ? clash.films[0].s : clash.films[0].t)}” (${clash.time})</p>` : ""}</div>
+    <button class="pick" data-key="${esc(s.key)}" aria-pressed="${on}">${on ? "✓ En mi agenda" : "+ Agregar"}</button></article>`;
+}
+
+loadPicks();
+renderAll();
+</script>
+</body>
+</html>
