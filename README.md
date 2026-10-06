@@ -13,7 +13,7 @@ Datos e imágenes: [33.ficvaldivia.cl/programacion](https://33.ficvaldivia.cl/pr
 
 ## Actualización automática
 
-`.github/workflows/actualizar.yml` corre `actualizar.py` (y `programa_pdf.py` si hubo cambios) todos los días a las 07:00 y 13:00 de Chile, y publica solo si cambió algo. Se detiene sola después del 19 de octubre de 2026. Para correrla a mano: pestaña **Actions → Actualizar programación → Run workflow**.
+`.github/workflows/actualizar.yml` corre `actualizar.py` (y `programa_pdf.py` si hubo cambios) todos los días a las 07:00 de Chile, y publica solo si cambió algo. Se detiene sola después del 19 de octubre de 2026. Para correrla a mano: pestaña **Actions → Actualizar programación → Run workflow**.
 
 ## Tarjeta al compartir
 

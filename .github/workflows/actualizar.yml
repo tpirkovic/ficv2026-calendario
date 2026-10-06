@@ -1,11 +1,10 @@
-# Actualiza la programación desde 33.ficvaldivia.cl dos veces al día hasta que termine el festival.
+# Actualiza la programación desde 33.ficvaldivia.cl una vez al día hasta que termine el festival.
 # También se puede correr a mano: pestaña Actions → "Actualizar programación" → Run workflow.
 name: Actualizar programación
 
 on:
   schedule:
     - cron: "0 10 * * *"  # 07:00 en Chile (UTC-3)
-    - cron: "0 16 * * *"  # 13:00 en Chile
   workflow_dispatch:
 
 permissions:
