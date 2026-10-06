@@ -4,7 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mi FICValdivia 2026</title>
-<meta name="description" content="Arma tu agenda del 33 Festival Internacional de Cine de Valdivia y llévala a tu calendario.">
+<meta name="description" content="Arma tu agenda del 33 Festival Internacional de Cine de Valdivia: elige funciones, evita choques de horario y llévalas a tu calendario o a un PDF.">
+<!-- Tarjeta al compartir el enlace (X, WhatsApp, Facebook…) -->
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_CL">
+<meta property="og:url" content="https://tpirkovic.github.io/ficv2026-calendario/">
+<meta property="og:title" content="Mi FICValdivia 2026">
+<meta property="og:description" content="Arma tu agenda del 33 Festival Internacional de Cine de Valdivia: elige funciones, evita choques de horario y llévalas a tu calendario o a un PDF.">
+<meta property="og:image" content="https://tpirkovic.github.io/ficv2026-calendario/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Mi FICValdivia: arma tu agenda del festival, 12 al 18 de octubre de 2026">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="logo.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap">
 <style>
@@ -195,7 +206,10 @@ for (const [id, t, d, c, s, a, p, fs, fd] of FILMS) for (const f of fs) {
   byKey.get(key).films.push({ id, t, d, c, s, a, p, fd: fd && fd.replace(/'\s*$/, " min") }); // "104'" -> "104 min"
 }
 const SLOTS = [...byKey.values()].sort((x, y) => DAYS.indexOf(x.day) - DAYS.indexOf(y.day) || x.time.localeCompare(y.time) || x.venue.localeCompare(y.venue));
-const IDX = new Map(SLOTS.map((s, i) => [s.key, i]));
+// Código corto y estable por función (hash de día|hora|sala), para que los enlaces compartidos
+// sigan sirviendo aunque actualizar.py agregue o quite funciones
+const tok = k => { let h = 2166136261; for (const c of k) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619); } return ((h >>> 0) % 60466176).toString(36).padStart(5, "0"); };
+const BY_TOK = new Map(SLOTS.map(s => [tok(s.key), s.key]));
 
 // --- almacenamiento local (por nombre) ---
 const store = {
@@ -241,14 +255,23 @@ $("logout").onclick = () => { user = null; store.set("ficv-user", null); loadPic
 $("known").onclick = e => { const b = e.target.closest("button"); if (b) setUser(b.dataset.name); };
 
 // --- selección compartida (#s=índices en base 36&n=nombre): solo para ver, no se copia a la agenda propia ---
+// Códigos de 5 caracteres; los de 1–2 son enlaces antiguos por posición
 const sharedMatch = location.hash.match(/^#s=([0-9a-z.]*)(?:&n=([^&]*))?$/);
-const sharedKeys = new Set(sharedMatch ? sharedMatch[1].split(".").map(x => SLOTS[parseInt(x, 36)]?.key).filter(Boolean) : []);
+const sharedKeys = new Set(sharedMatch ? sharedMatch[1].split(".").map(x => x.length === 5 ? BY_TOK.get(x) : SLOTS[parseInt(x, 36)]?.key).filter(Boolean) : []);
 let sharedName = ""; try { sharedName = decodeURIComponent(sharedMatch?.[2] || "").slice(0, 40); } catch {}
 
 // --- vistas ---
 $("days").innerHTML = DAYS.map(d => { const [w, n] = d.split(" "); return `<button data-v="${d}"><small>${w.slice(0, 3)}</small><b>${n}</b></button>`; }).join("");
 let lastDay = DAYS.includes(view) ? view : DAYS[0]; // día al que vuelve "Volver al calendario"
 if (sharedKeys.size) view = "friend";
+// Eventos para GoatCounter (sin datos personales: solo el nombre de la acción)
+const track = name => { try { window.goatcounter?.count?.({ path: name, title: name, event: true }); } catch {} };
+if (sharedKeys.size) addEventListener("load", () => track("abre-enlace-compartido"));
+document.addEventListener("click", e => {
+  if (e.target.closest(".gcal")) track("google-calendar");
+  if (e.target.closest(".full-pdf")) track("programa-completo-pdf");
+  if (e.target.closest(".ficha")) track("ficha-festival");
+});
 const go = v => {
   if (view === "friend" && v !== "friend") history.replaceState(null, "", location.pathname + location.search);
   view = v; if (DAYS.includes(v)) lastDay = v; if (v !== "friend") store.set("ficv-view", view); render();
@@ -273,6 +296,7 @@ $("list").onclick = e => {
 };
 
 $("dl").onclick = () => {
+  track("agenda-ics");
   const chosen = SLOTS.filter(s => picks.has(s.key));
   if (!chosen.length) return toast("Aún no seleccionas funciones");
   const blob = new Blob([buildICS(chosen, user)], { type: "text/calendar;charset=utf-8" });
@@ -326,11 +350,13 @@ $("pdf").onclick = async () => {
     // En iPhone la descarga tiene que salir de un toque, así que se ofrece el botón; en el resto se descarga sola
     ready.textContent = IS_IOS ? "Tu PDF está listo: toca para descargar" : "¿No se descargó? Toca aquí";
     if (!IS_IOS) doc.save(name);
+    track("agenda-pdf");
   } catch { toast("No se pudo generar el PDF. Revisa tu conexión e intenta de nuevo."); }
   finally { host.remove(); btn.disabled = false; btn.textContent = "Descargar como PDF"; }
 };
 $("share").onclick = async () => {
-  const url = `${location.origin}${location.pathname}#s=${[...picks].map(k => IDX.get(k).toString(36)).join(".")}&n=${encodeURIComponent(user)}`;
+  const url = `${location.origin}${location.pathname}#s=${[...picks].map(tok).join(".")}&n=${encodeURIComponent(user)}`;
+  track("compartir");
   if (navigator.share) { // celular: menú de compartir del sistema (WhatsApp, mensajes…)
     try { await navigator.share({ title: "Mi FICValdivia 2026", text: `La selección de ${user} para FICValdivia 2026`, url }); return; }
     catch (e) { if (e.name === "AbortError") return; }

@@ -1,0 +1,44 @@
+# Actualiza la programación desde 33.ficvaldivia.cl dos veces al día hasta que termine el festival.
+# También se puede correr a mano: pestaña Actions → "Actualizar programación" → Run workflow.
+name: Actualizar programación
+
+on:
+  schedule:
+    - cron: "0 10 * * *"  # 07:00 en Chile (UTC-3)
+    - cron: "0 16 * * *"  # 13:00 en Chile
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detener después del festival
+        id: fecha
+        run: |
+          if [ "$(date -u +%Y%m%d)" -gt 20261019 ]; then echo "fin=1" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/checkout@v4
+        if: steps.fecha.outputs.fin != '1'
+
+      - name: Descargar programación e imágenes nuevas
+        if: steps.fecha.outputs.fin != '1'
+        run: python3 actualizar.py
+
+      - name: Regenerar PDF de la programación completa
+        if: steps.fecha.outputs.fin != '1'
+        run: |
+          # Solo si cambiaron los datos: el PDF lleva la fecha del día y si no cambiaría siempre
+          git diff --quiet data.js img || python3 programa_pdf.py
+
+      - name: Publicar cambios
+        if: steps.fecha.outputs.fin != '1'
+        run: |
+          git add -A
+          if git diff --cached --quiet; then echo "Sin cambios en la programación"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Actualiza programación $(TZ=America/Santiago date '+%Y-%m-%d %H:%M')"
+          git push

@@ -2,7 +2,7 @@
 
 Uso: python3 programa_pdf.py   (correr después de actualizar.py)
 """
-import json, re, html, subprocess, os, datetime
+import json, re, html, subprocess, os, datetime, shutil
 from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -129,7 +129,9 @@ ul span {{ color: var(--muted); }}
 </body></html>"""
 tmp = f"{HERE}/.programa.html"  # junto a img/ para que las rutas relativas funcionen
 open(tmp, "w").write(doc)
-subprocess.run(["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "--headless=new", "--disable-gpu",
+CHROME = next(p for p in ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",  # Mac
+                           shutil.which("google-chrome"), shutil.which("chromium")] if p and os.path.exists(p))  # Linux (GitHub Actions)
+subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--no-sandbox",
                 "--no-pdf-header-footer", "--virtual-time-budget=10000", "--allow-file-access-from-files",
                 f"--print-to-pdf={HERE}/programacion-ficv2026.pdf", f"file://{tmp}"],
                check=True, capture_output=True)
