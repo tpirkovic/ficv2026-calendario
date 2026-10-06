@@ -41,13 +41,19 @@ button { cursor: pointer; }
 .banner .btn { background: var(--yellow); color: var(--ink); padding: 6px 12px; }
 .banner .btn.skip { background: none; color: #fff; border: 1.5px solid #fff; }
 
-.days { display: flex; gap: 6px; overflow-x: auto; position: sticky; top: 0; z-index: 3; background: var(--bg); padding-block: 8px; }
+.sticky { position: sticky; top: 0; z-index: 3; background: var(--bg); padding-block: 8px; display: grid; gap: 8px; }
+.agenda-btn { justify-self: end; display: inline-flex; align-items: center; gap: 8px; background: var(--coral); color: #fff; border: 0; border-radius: 99px; padding: 7px 16px; font-weight: 900; }
+.agenda-btn .count { background: #fff; color: var(--coral); border-radius: 99px; min-width: 22px; padding: 0 6px; text-align: center; font-variant-numeric: tabular-nums; }
+.agenda-btn:hover { background: var(--ink); }
+.agenda-btn:hover .count { color: var(--ink); }
+.agenda-btn.bump { animation: bump .4s; }
+@keyframes bump { 50% { transform: scale(1.08); } }
+@media (prefers-reduced-motion: reduce) { .agenda-btn.bump { animation: none; } }
+.days { display: flex; gap: 6px; overflow-x: auto; }
 .days button { flex: 1 0 auto; min-width: 60px; border: 1.5px solid var(--ink); background: var(--card); border-radius: 10px; padding: 5px 10px; display: grid; line-height: 1.1; }
 .days small { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
 .days b { font-weight: 900; font-size: 20px; }
 .days button[aria-pressed="true"] { background: var(--ink); color: var(--yellow); }
-.days .mine { background: var(--coral); border-color: var(--coral); color: #fff; min-width: 110px; }
-.days .mine[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); }
 
 .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
 .filters input, .filters select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); min-width: 0; }
@@ -84,7 +90,8 @@ h2.dayh span { color: var(--coral); }
 .empty { color: var(--muted); text-align: center; padding: 30px 0; }
 footer { color: var(--muted); font-size: 12.5px; }
 footer a { color: inherit; }
-.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: var(--yellow); padding: 10px 16px; border-radius: 8px; font-weight: 700; }
+.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 12px 10px 16px; border-radius: 8px; font-weight: 700; display: flex; align-items: center; gap: 12px; width: max-content; max-width: calc(100% - 32px); z-index: 10; }
+.toast button { background: var(--yellow); color: var(--ink); border: 0; border-radius: 6px; padding: 5px 12px; font-weight: 900; white-space: nowrap; }
 
 .when .dur { font-weight: 700; color: var(--ink); margin-right: 2px; }
 .card > .gcal, .card > .pick { grid-column: 3; }
@@ -129,7 +136,10 @@ footer a { color: inherit; }
 
   <div class="banner" id="importBar" hidden></div>
 
-  <nav class="days" id="days" aria-label="Día"></nav>
+  <div class="sticky">
+    <button class="agenda-btn" id="agendaBtn">Ver mi agenda <span class="count" id="nPicks">0</span> <span aria-hidden="true">→</span></button>
+    <nav class="days" id="days" aria-label="Día"></nav>
+  </div>
 
   <button class="back" id="back" hidden>← Volver al calendario</button>
   <div class="actions" id="mineActions" hidden>
@@ -196,7 +206,13 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const mins = t => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
 const endTime = s => { const m = mins(s.time) + (s.dur || DURATION_MIN); return `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
-function toast(msg) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 2600); }
+function toast(msg, action) { // action opcional: { label, fn }
+  document.querySelectorAll(".toast").forEach(t => t.remove());
+  const t = Object.assign(document.createElement("div"), { className: "toast", textContent: msg });
+  t.setAttribute("role", "status");
+  if (action) t.append(Object.assign(document.createElement("button"), { textContent: action.label, onclick: () => { t.remove(); action.fn(); } }));
+  document.body.append(t); setTimeout(() => t.remove(), action ? 4000 : 2600);
+}
 
 // --- filtros ---
 const uniq = a => [...new Set(a)].filter(Boolean).sort((x, y) => x.localeCompare(y, "es"));
@@ -229,10 +245,11 @@ $("importBar").onclick = e => {
 };
 
 // --- vistas ---
-$("days").innerHTML = `<button data-v="mine" class="mine"><small>Mi selección</small><b id="nPicks">0</b></button>` + DAYS.map(d => { const [w, n] = d.split(" "); return `<button data-v="${d}"><small>${w.slice(0, 3)}</small><b>${n}</b></button>`; }).join("");
+$("days").innerHTML = DAYS.map(d => { const [w, n] = d.split(" "); return `<button data-v="${d}"><small>${w.slice(0, 3)}</small><b>${n}</b></button>`; }).join("");
 let lastDay = DAYS.includes(view) ? view : DAYS[0]; // día al que vuelve "Volver al calendario"
 const go = v => { view = v; if (DAYS.includes(v)) lastDay = v; store.set("ficv-view", view); render(); };
 $("days").onclick = e => { const b = e.target.closest("button"); if (b) go(b.dataset.v); };
+$("agendaBtn").onclick = () => { go("mine"); window.scrollTo(0, 0); };
 $("back").onclick = () => go(lastDay);
 $("home").onclick = e => { // inicio: primer día, sin filtros, arriba
   e.preventDefault();
@@ -243,7 +260,12 @@ $("home").onclick = e => { // inicio: primer día, sin filtros, arriba
 $("list").onclick = e => {
   const b = e.target.closest(".pick"); if (!b) return;
   if (!user) { $("name").focus(); toast("Escribe tu nombre para guardar tu selección"); return; }
-  const k = b.dataset.key; picks.has(k) ? picks.delete(k) : picks.add(k); savePicks(); render();
+  const k = b.dataset.key, adding = !picks.has(k);
+  adding ? picks.add(k) : picks.delete(k); savePicks(); render();
+  if (adding && view !== "mine") {
+    toast(`Agregada a tu agenda (${picks.size})`, { label: "Ver mi agenda →", fn: () => { go("mine"); window.scrollTo(0, 0); } });
+    const ab = $("agendaBtn"); ab.classList.remove("bump"); void ab.offsetWidth; ab.classList.add("bump");
+  }
 };
 
 $("dl").onclick = () => {
@@ -292,6 +314,7 @@ function render() {
   if (view !== "mine" && !DAYS.includes(view)) view = DAYS[0];
   for (const b of $("days").children) b.setAttribute("aria-pressed", b.dataset.v === view);
   $("nPicks").textContent = picks.size;
+  $("agendaBtn").hidden = view === "mine";
   const mine = view === "mine";
   $("mineActions").hidden = !mine || !picks.size;
   $("back").hidden = !mine;
