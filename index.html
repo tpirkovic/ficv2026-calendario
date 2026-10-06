@@ -84,15 +84,38 @@ footer { color: var(--muted); font-size: 12.5px; }
 footer a { color: inherit; }
 .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: var(--yellow); padding: 10px 16px; border-radius: 8px; font-weight: 700; }
 
+.when .dur { font-weight: 700; color: var(--ink); margin-right: 2px; }
+.card > .gcal, .card > .pick { grid-column: 3; }
+.gcal { font-size: 12.5px; font-weight: 700; color: var(--ink); justify-self: end; }
+.card:has(.gcal) .pick { grid-row: 2; }
+.print-only { display: none; }
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body { background: #fff; font-size: 11px; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .days, .actions, .filters, .banner, .login, .who, .pick, .gcal, footer, .toast { display: none !important; }
+  .top .in { padding: 8px 12px; }
+  .print-only { display: block; order: 3; margin: 0 0 0 auto; font-weight: 900; }
+  .wrap { padding: 8px 0 0; max-width: none; }
+  .list { display: block; columns: 2; column-gap: 8mm; }
+  h2.dayh { break-after: avoid; column-span: all; margin: 10px 0 6px; padding: 4px 8px; background: var(--yellow); }
+  .card { break-inside: avoid; grid-template-columns: 70px 1fr; gap: 8px; padding: 6px; margin-bottom: 6px; box-shadow: none; }
+  .card.on { box-shadow: none; border-color: var(--line); }
+  .card img { width: 70px; }
+  .card h3 { font-size: 12px; }
+}
+
 @media (max-width: 560px) {
   .card { grid-template-columns: 84px 1fr; }
   .card img { width: 84px; }
-  .pick { grid-column: 1 / -1; justify-self: start; }
+  .card > .pick, .card > .gcal { grid-column: 1 / -1; grid-row: auto; justify-self: start; }
 }
 </style>
 </head>
 <body>
 <div class="top"><div class="in">
+  <p id="printHead" class="print-only"></p>
   <img src="logo.png" alt="">
   <h1>Mi FICValdivia<span>12–18 OCT. 2026</span></h1>
   <div class="who" id="who" hidden><span id="whoName"></span><button id="logout">Cambiar persona</button></div>
@@ -111,9 +134,12 @@ footer a { color: inherit; }
   <nav class="days" id="days" aria-label="Día"></nav>
 
   <div class="actions" id="mineActions" hidden>
-    <button class="btn alt" id="dl">Descargar calendario (.ics)</button>
+    <button class="btn alt" id="dl">Agregar a mi calendario</button>
+    <button class="btn" id="pdf">Descargar como PDF</button>
     <button class="btn ghost" id="share">Copiar enlace a mi selección</button>
-    <p>El archivo .ics se abre con Google Calendar, Apple Calendar u Outlook. En Google Calendar en el computador: Configuración → Importar y exportar → Importar. El enlace sirve para pasar tu selección a otro dispositivo.</p>
+    <p><b>Agregar a mi calendario</b> descarga un archivo .ics: al abrirlo en iPhone, Mac u Outlook se agregan todas las funciones. En Android usa el botón “Google Calendar” de cada función, o en el computador: Google Calendar → Configuración → Importar.
+    <b>Descargar como PDF</b> abre la ventana de impresión: elige “Guardar como PDF”.
+    El enlace sirve para pasar tu selección a otro dispositivo.</p>
   </div>
 
   <div class="filters" id="filters">
@@ -220,6 +246,7 @@ $("dl").onclick = () => {
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `ficv2026-${norm(user).replace(/[^a-z0-9]+/g, "-")}.ics` });
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
+$("pdf").onclick = () => { $("printHead").textContent = `Agenda de ${user} · ${picks.size} funciones`; window.print(); };
 $("share").onclick = async () => {
   const url = `${location.origin}${location.pathname}#s=${[...picks].map(k => IDX.get(k).toString(36)).join(".")}`;
   try { await navigator.clipboard.writeText(url); toast("Enlace copiado"); } catch { prompt("Copia este enlace:", url); }
@@ -266,6 +293,13 @@ function render() {
   $("list").innerHTML = html;
 }
 
+function gcalUrl(s) { // un evento suelto en Google Calendar (sirve en Android, donde el .ics no se abre solo)
+  const f0 = s.films[0], start = icsDate(s.day, s.time);
+  return "https://calendar.google.com/calendar/render?" + new URLSearchParams({ action: "TEMPLATE",
+    text: "FICV · " + (s.films.length > 1 ? f0.s || f0.c : f0.t), dates: `${start}/${icsEnd(start, s.dur || DURATION_MIN)}`,
+    location: s.venue + ", Valdivia", details: s.films.map(f => f.t + (f.d ? ` (${f.d})` : "")).join("\n") });
+}
+
 function card(s, clash) {
   const on = picks.has(s.key), f0 = s.films[0], many = s.films.length > 1;
   const cats = uniq(s.films.map(f => f.c)), subs = uniq(s.films.map(f => f.s)), accs = uniq(s.films.flatMap(f => f.a));
@@ -276,8 +310,9 @@ function card(s, clash) {
     ? `<h3>${esc(f0.s || f0.c)} <small>· ${s.films.length} obras</small></h3><ul>${s.films.map(f => `<li>${esc(f.t)}${f.d || f.fd ? ` <span>· ${[f.d, f.fd].filter(Boolean).map(esc).join(" · ")}</span>` : ""}</li>`).join("")}</ul>`
     : `<h3>${esc(f0.t)}</h3><p class="by">${[f0.d, f0.p, f0.fd].filter(Boolean).map(esc).join(" · ")}</p>`;
   return `<article class="card${on ? " on" : ""}"><img src="img/${f0.id}.jpg" alt="" loading="lazy">
-    <div class="info"><p class="when"><b>${s.time}${s.dur ? "–" + endTime(s) : ""}</b>${esc(s.venue)}${s.estado && s.estado !== "Confirmada" ? ` <span class="estado">${esc(s.estado)}</span>` : ""}</p>${body}<div class="tags">${tags}</div>
+    <div class="info"><p class="when"><b>${s.time}${s.dur ? "–" + endTime(s) : ""}</b>${s.dur ? `<span class="dur">${s.dur} min</span> · ` : ""}${esc(s.venue)}${s.estado && s.estado !== "Confirmada" ? ` <span class="estado">${esc(s.estado)}</span>` : ""}</p>${body}<div class="tags">${tags}</div>
     ${clash ? `<p class="clash">Choca con “${esc(clash.films.length > 1 ? clash.films[0].s : clash.films[0].t)}” (${clash.time}–${endTime(clash)})</p>` : ""}</div>
+    ${on && view === "mine" ? `<a class="gcal" href="${gcalUrl(s)}" target="_blank" rel="noopener">Google Calendar</a>` : ""}
     <button class="pick" data-key="${esc(s.key)}" aria-pressed="${on}">${on ? "✓ En mi agenda" : "+ Agregar"}</button></article>`;
 }
 
