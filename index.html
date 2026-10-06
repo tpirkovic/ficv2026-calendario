@@ -32,6 +32,7 @@ button { cursor: pointer; }
 .login form { display: flex; gap: 8px; flex-wrap: wrap; }
 .login input { flex: 1 1 220px; padding: 10px 12px; border: 1.5px solid var(--ink); border-radius: 8px; background: #fff; }
 .btn { background: var(--ink); color: var(--yellow); border: 0; border-radius: 8px; padding: 10px 16px; font-weight: 900; }
+a.btn { text-decoration: none; display: inline-block; }
 .btn.alt { background: var(--coral); color: #fff; }
 .btn.ghost { background: none; color: var(--ink); border: 1.5px solid var(--ink); }
 .known { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: 13px; }
@@ -95,7 +96,6 @@ footer { color: var(--muted); font-size: 12.5px; }
 footer a { color: inherit; }
 .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 12px 10px 16px; border-radius: 8px; font-weight: 700; display: flex; align-items: center; gap: 12px; width: max-content; max-width: calc(100% - 32px); z-index: 10; }
 
-.when .dur { font-weight: 700; color: var(--ink); margin-right: 2px; }
 .card > .gcal, .card > .pick { grid-column: 3; }
 .gcal { font-size: 12.5px; font-weight: 700; color: var(--ink); justify-self: end; }
 .card:has(.gcal) .pick { grid-row: 2; }
@@ -153,6 +153,7 @@ footer a { color: inherit; }
   <div class="actions" id="mineActions" hidden>
     <button class="btn alt" id="dl">Agregar a mi calendario</button>
     <button class="btn" id="pdf">Descargar como PDF</button>
+    <a class="btn alt" id="pdfReady" hidden></a>
     <button class="btn ghost" id="share">Copiar enlace a mi selección</button>
     <p><b>Agregar a mi calendario</b> descarga un archivo .ics: al abrirlo en iPhone, Mac u Outlook se agregan todas las funciones. En Android usa el botón “Google Calendar” de cada función, o en el computador: Google Calendar → Configuración → Importar.
     <b>Descargar como PDF</b> descarga tu agenda como archivo.
@@ -192,7 +193,7 @@ for (const [id, t, d, c, s, a, p, fs, fd] of FILMS) for (const f of fs) {
   const [day, time, ...v] = f.split(" - "), venue = v.join(" - "), hhmm = time.padStart(5, "0");
   const key = `${day}|${hhmm}|${venue}`;
   if (!byKey.has(key)) { const [dur, estado] = SESSIONS[f] || []; byKey.set(key, { key, day, time: hhmm, venue, dur, estado, films: [] }); }
-  byKey.get(key).films.push({ id, t, d, c, s, a, p, fd });
+  byKey.get(key).films.push({ id, t, d, c, s, a, p, fd: fd && fd.replace(/'\s*$/, " min") }); // "104'" -> "104 min"
 }
 const SLOTS = [...byKey.values()].sort((x, y) => DAYS.indexOf(x.day) - DAYS.indexOf(y.day) || x.time.localeCompare(y.time) || x.venue.localeCompare(y.venue));
 const IDX = new Map(SLOTS.map((s, i) => [s.key, i]));
@@ -281,23 +282,54 @@ $("dl").onclick = () => {
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
 const loadScript = src => new Promise((ok, fail) => document.head.append(Object.assign(document.createElement("script"), { src, onload: ok, onerror: fail })));
+const PAGE_H = 1047; // 277 mm de alto útil (A4 con márgenes de 10 mm) a 96 dpi; el ancho es 718 px = 190 mm
+const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("timeout")), ms))]);
 $("pdf").onclick = async () => {
-  const btn = $("pdf"); btn.disabled = true; btn.textContent = "Generando PDF…";
+  const btn = $("pdf"), ready = $("pdfReady");
+  btn.disabled = true; btn.textContent = "Generando PDF…"; ready.hidden = true;
+  const host = Object.assign(document.createElement("div"), { style: "position:fixed;left:0;top:0;z-index:-1;pointer-events:none" });
   try {
-    if (!window.html2pdf) await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js");
+    await withTimeout(Promise.all([
+      window.jspdf || loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"),
+      window.html2canvas || loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"),
+    ]), 30000);
     const sheet = Object.assign(document.createElement("div"), { className: "pdf-sheet", innerHTML:
       `<div class="top"><div class="in"><img src="logo.png" alt=""><h1>Mi FICValdivia<span>12–18 OCT. 2026</span></h1>
        <p class="pname">Agenda de ${esc(user)}<br>${picks.size} funciones</p></div></div>
        <div class="list">${listHTML(SLOTS.filter(s => picks.has(s.key)), true)}</div>` });
-    await html2pdf().set({
-      filename: `calendario_${user.trim().replace(/[^\p{L}\p{N}]+/gu, "_")}.pdf`,
-      margin: [10, 10, 10, 10], image: { type: "jpeg", quality: 0.9 },
-      html2canvas: { scale: 2, scrollX: 0, scrollY: 0 }, // sin windowWidth: desplaza la captura
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["css", "legacy"], avoid: [".card", ".keep"] },
-    }).from(sheet).save();
+    host.append(sheet); document.body.append(host);
+    const imgs = [...sheet.querySelectorAll("img")];
+    imgs.forEach(im => im.loading = "eager"); // las diferidas no cargan fuera de pantalla
+    await withTimeout(Promise.all(imgs.map(im => im.decode().catch(() => {}))), 20000);
+
+    // Repartir encabezado, títulos de día y tarjetas en páginas, sin partir ninguna
+    const pages = [[]]; let h = 0;
+    for (const b of [sheet.querySelector(".top"), ...sheet.querySelector(".list").children]) {
+      const bh = b.offsetHeight + 6;
+      if (h + bh > PAGE_H && pages.at(-1).length) { pages.push([]); h = 0; }
+      pages.at(-1).push(b); h += bh;
+    }
+    // Una imagen por página: una sola imagen de toda la agenda supera el límite de Safari en iPhone
+    const doc = new jspdf.jsPDF({ unit: "mm", format: "a4" });
+    for (const [n, blocks] of pages.entries()) {
+      const page = Object.assign(document.createElement("div"), { className: "pdf-sheet" });
+      const list = Object.assign(document.createElement("div"), { className: "list" });
+      for (const b of blocks) (b.classList.contains("top") ? page : list).append(b);
+      page.append(list); host.append(page);
+      const canvas = await withTimeout(html2canvas(page, { scale: 2, backgroundColor: "#fff", scrollX: 0, scrollY: 0 }), 30000);
+      if (n) doc.addPage();
+      doc.addImage(canvas.toDataURL("image/jpeg", 0.9), "JPEG", 10, 10, 190, canvas.height * 190 / canvas.width);
+      page.remove();
+    }
+    const name = `calendario_${user.trim().replace(/[^\p{L}\p{N}]+/gu, "_")}.pdf`;
+    if (ready.href) URL.revokeObjectURL(ready.href);
+    Object.assign(ready, { href: URL.createObjectURL(doc.output("blob")), download: name, hidden: false });
+    // En iPhone la descarga tiene que salir de un toque, así que se ofrece el botón; en el resto se descarga sola
+    ready.textContent = IS_IOS ? "Tu PDF está listo: toca para descargar" : "¿No se descargó? Toca aquí";
+    if (!IS_IOS) doc.save(name);
   } catch { toast("No se pudo generar el PDF. Revisa tu conexión e intenta de nuevo."); }
-  finally { btn.disabled = false; btn.textContent = "Descargar como PDF"; }
+  finally { host.remove(); btn.disabled = false; btn.textContent = "Descargar como PDF"; }
 };
 $("share").onclick = async () => {
   const url = `${location.origin}${location.pathname}#s=${[...picks].map(k => IDX.get(k).toString(36)).join(".")}`;
@@ -373,7 +405,7 @@ function card(s, clash) {
     ? `<h3>${esc(f0.s || f0.c)} <small>· ${s.films.length} obras</small></h3><ul>${s.films.map(f => `<li>${esc(f.t)}${ficha(f)}${f.d || f.fd ? ` <span>· ${[f.d, f.fd].filter(Boolean).map(esc).join(" · ")}</span>` : ""}</li>`).join("")}</ul>`
     : `<h3>${esc(f0.t)}${ficha(f0)}</h3><p class="by">${[f0.d, f0.p, f0.fd].filter(Boolean).map(esc).join(" · ")}</p>`;
   return `<article class="card${on ? " on" : ""}"><img src="img/${f0.id}.jpg" alt="" loading="lazy">
-    <div class="info"><p class="when"><b>${s.time}${s.dur ? "–" + endTime(s) : ""}</b>${s.dur ? `<span class="dur">${s.dur} min</span> · ` : ""}${esc(s.venue)}${s.estado && s.estado !== "Confirmada" ? ` <span class="estado">${esc(s.estado)}</span>` : ""}</p>${body}<div class="tags">${tags}</div>
+    <div class="info"><p class="when"><b>${s.time}${s.dur ? "–" + endTime(s) : ""}</b>${esc(s.venue)}${s.estado && s.estado !== "Confirmada" ? ` <span class="estado">${esc(s.estado)}</span>` : ""}</p>${body}<div class="tags">${tags}</div>
     ${clash ? `<p class="clash">Choca con “${esc(clash.films.length > 1 ? clash.films[0].s : clash.films[0].t)}” (${clash.time}–${endTime(clash)})</p>` : ""}</div>
     ${on && view === "mine" ? `<a class="gcal" href="${gcalUrl(s)}" target="_blank" rel="noopener">Google Calendar</a>` : ""}
     <button class="pick" data-key="${esc(s.key)}" aria-pressed="${on}">${on ? "✓ En mi agenda" : "+ Agregar"}</button></article>`;

@@ -36,7 +36,7 @@ function buildICS(slots, owner) {
       many ? s.films.map(f => `• ${f.t}${f.d ? " (" + f.d + ")" : ""}${f.fd ? " " + f.fd : ""}`).join("\n") : [f0.d, f0.p, f0.fd].filter(Boolean).join(" · "),
       [f0.c, f0.s].filter(Boolean).join(" · "),
       "Acceso: " + [...new Set(s.films.flatMap(f => f.a))].join(" / "),
-      s.dur ? `Función de ${s.dur} min` : "Duración estimada; revisa 33.ficvaldivia.cl",
+      ...(s.dur ? [] : ["Término estimado; revisa 33.ficvaldivia.cl"]),
     ].join("\n");
     const start = icsDate(s.day, s.time);
     return ["BEGIN:VEVENT", `UID:${encodeURIComponent(s.key)}@ficv2026`, `DTSTAMP:${stamp}`,

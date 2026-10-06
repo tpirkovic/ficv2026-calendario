@@ -31,7 +31,7 @@ e = lambda s: html.escape(re.sub(r"\s*\n+\s*", " — ", s or "").strip())
 slots = defaultdict(list)
 dur = {}  # minutos de cada función
 for fid, t, d, c, sub, acc, pais, funcs, fd in rows:
-    film = dict(id=fid, t=t, d=d, c=c, s=sub, a=acc, p=pais, fd=fd)
+    film = dict(id=fid, t=t, d=d, c=c, s=sub, a=acc, p=pais, fd=re.sub(r"'\s*$", " min", fd or ""))
     for f in funcs:
         day, time, *v = f.split(" - ")
         key = (day, time.zfill(5), " - ".join(v))
@@ -41,7 +41,7 @@ for fid, t, d, c, sub, acc, pais, funcs, fd in rows:
 def span(time, mins):  # "11:30", 105 -> "11:30–13:15 · 105 min"
     if not mins: return f"<b>{time}</b>"
     h, m = map(int, time.split(":")); end = h * 60 + m + mins
-    return f"<b>{time}–{end // 60 % 24:02d}:{end % 60:02d}</b> <span class=\"dur\">{mins} min</span> ·"
+    return f"<b>{time}–{end // 60 % 24:02d}:{end % 60:02d}</b>"
 
 def tags(films):
     cats = list(dict.fromkeys(f["c"] for f in films))
@@ -123,7 +123,7 @@ ul span {{ color: var(--muted); }}
 <h1>Calendario de programación</h1><p class="sub">12–18 OCT. 2026 · {len(slots)} funciones · {len(rows)} obras</p>
 <ul class="days-count">{counts}</ul>
 <div class="legend"><div><h2>Categorías</h2><ul>{legend}</ul></div><div><h2>Acceso</h2><ul>{acc_legend}</ul>
-<h2 style="margin-top:6mm">Cómo leerlo</h2><p>Cada día empieza en una página nueva. Las funciones van por hora, con su inicio, término y duración en minutos; junto a cada obra va su propia duración. Los programas de cortos aparecen como una sola función con la lista de obras. La etiqueta con borde negro es la sub categoría.</p></div></div>
+<h2 style="margin-top:6mm">Cómo leerlo</h2><p>Cada día empieza en una página nueva. Las funciones van por hora, con su hora de inicio y término; junto a cada obra va lo que dura la película. Los programas de cortos aparecen como una sola función con la lista de obras. La etiqueta con borde negro es la sub categoría.</p></div></div>
 <p class="note">Arma tu agenda en tpirkovic.github.io/ficv2026-calendario<br>Datos de 33.ficvaldivia.cl/programacion al {datetime.date.today():%d-%m-%Y}. Revisa la web oficial por cambios de última hora.</p></section>
 {"".join(days_html)}
 </body></html>"""
