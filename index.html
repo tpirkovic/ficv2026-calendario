@@ -101,7 +101,8 @@ footer a { color: inherit; }
 .back:hover { color: var(--coral); }
 
 /* Hoja que se convierte en PDF (no se muestra en pantalla) */
-.pdf-sheet { width: 760px; background: #fff; font-size: 12px; }
+.keep { display: grid; gap: inherit; }
+.pdf-sheet { width: 718px; /* 190 mm: ancho útil de A4 con márgenes de 10 mm */ background: #fff; font-size: 12px; }
 .pdf-sheet .top .in { padding: 10px 14px; max-width: none; }
 .pdf-sheet .pname { margin: 0 0 0 auto; font-weight: 900; text-align: right; }
 .pdf-sheet .list { padding: 6px 2px 0; gap: 6px; }
@@ -285,7 +286,7 @@ $("pdf").onclick = async () => {
       margin: [10, 10, 10, 10], image: { type: "jpeg", quality: 0.9 },
       html2canvas: { scale: 2, scrollX: 0, scrollY: 0 }, // sin windowWidth: desplaza la captura
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["css", "legacy"], avoid: [".card", "h2.dayh"] },
+      pagebreak: { mode: ["css", "legacy"], avoid: [".card", ".keep"] },
     }).from(sheet).save();
   } catch { toast("No se pudo generar el PDF. Revisa tu conexión e intenta de nuevo."); }
   finally { btn.disabled = false; btn.textContent = "Descargar como PDF"; }
@@ -334,10 +335,12 @@ function render() {
 function listHTML(shown, mine) {
   let html = "", lastDay = "";
   shown.forEach((s, i) => {
-    if (mine && s.day !== lastDay) { const [w, n] = s.day.split(" "); html += `<h2 class="dayh">${w} <span>${n}</span></h2>`; lastDay = s.day; }
     // choque = alguna función anterior elegida ese día termina después de que esta empieza
     const clash = mine ? shown.slice(0, i).find(o => o.day === s.day && mins(o.time) + (o.dur || DURATION_MIN) > mins(s.time)) : null;
-    html += card(s, clash);
+    if (mine && s.day !== lastDay) { // título del día + su primera función juntos, para que el PDF no deje el título solo
+      const [w, n] = s.day.split(" "); lastDay = s.day;
+      html += `<div class="keep"><h2 class="dayh">${w} <span>${n}</span></h2>${card(s, clash)}</div>`;
+    } else html += card(s, clash);
   });
   return html;
 }
