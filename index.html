@@ -67,6 +67,8 @@ h2.dayh span { color: var(--coral); }
 .when b { background: var(--ink); color: var(--yellow); border-radius: 4px; padding: 1px 6px; margin-right: 4px; font-variant-numeric: tabular-nums; }
 .card h3 { margin: 4px 0 2px; font-weight: 900; font-size: 16px; line-height: 1.25; }
 .card h3 small { color: var(--coral); font-size: 12px; }
+.ficha { color: var(--muted); display: inline-flex; vertical-align: -1px; padding: 2px; border-radius: 4px; }
+.ficha:hover { color: var(--coral); background: var(--bg); }
 .by { margin: 0; color: var(--muted); font-size: 13px; }
 .card ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
 .card ul span { color: var(--muted); }
@@ -101,7 +103,7 @@ footer a { color: inherit; }
 .pdf-sheet .card { grid-template-columns: 90px 1fr; gap: 10px; padding: 8px; }
 .pdf-sheet .card.on { box-shadow: none; border-color: var(--line); }
 .pdf-sheet .card img { width: 90px; }
-.pdf-sheet :is(.pick, .gcal) { display: none; }
+.pdf-sheet :is(.pick, .gcal, .ficha) { display: none; }
 
 @media (max-width: 560px) {
   .card { grid-template-columns: 84px 1fr; }
@@ -149,7 +151,7 @@ footer a { color: inherit; }
 
   <main id="list" class="list"></main>
 
-  <footer>Datos de <a href="https://33.ficvaldivia.cl/programacion">33.ficvaldivia.cl/programacion</a> al 5 de octubre de 2026, con la duración de cada función. Los horarios pueden cambiar: revisa la web oficial. Tu selección se guarda solo en este navegador. Sitio no oficial.</footer>
+  <footer>Datos de <a href="https://33.ficvaldivia.cl/programacion">33.ficvaldivia.cl/programacion</a> al 5 de octubre de 2026, con la duración de cada función. Los horarios pueden cambiar: revisa la web oficial. Tu selección se guarda solo en este navegador. Sitio no oficial.<br>Sitio hecho por Trajan y Claude.</footer>
 </div>
 
 <script src="data.js"></script>
@@ -328,6 +330,9 @@ function gcalUrl(s) { // un evento suelto en Google Calendar (sirve en Android, 
     location: s.venue + ", Valdivia", details: s.films.map(f => f.t + (f.d ? ` (${f.d})` : "")).join("\n") });
 }
 
+const LINK_ICON = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>`;
+const ficha = f => ` <a class="ficha" href="https://33.ficvaldivia.cl/ficha?recordId=${encodeURIComponent(f.id)}" target="_blank" rel="noopener" title="Ver ficha en el sitio del festival" aria-label="Ficha de ${esc(f.t)}">${LINK_ICON}</a>`;
+
 function card(s, clash) {
   const on = picks.has(s.key), f0 = s.films[0], many = s.films.length > 1;
   const cats = uniq(s.films.map(f => f.c)), subs = uniq(s.films.map(f => f.s)), accs = uniq(s.films.flatMap(f => f.a));
@@ -335,8 +340,8 @@ function card(s, clash) {
     .concat(subs.filter(x => !cats.includes(x)).map(x => `<span class="tag sub">${esc(x)}</span>`))
     .concat(accs.map(a => `<span class="tag acc${a === "Entrada Liberada" ? " free" : ""}">${esc(ACC[a] || a)}</span>`)).join("");
   const body = many
-    ? `<h3>${esc(f0.s || f0.c)} <small>· ${s.films.length} obras</small></h3><ul>${s.films.map(f => `<li>${esc(f.t)}${f.d || f.fd ? ` <span>· ${[f.d, f.fd].filter(Boolean).map(esc).join(" · ")}</span>` : ""}</li>`).join("")}</ul>`
-    : `<h3>${esc(f0.t)}</h3><p class="by">${[f0.d, f0.p, f0.fd].filter(Boolean).map(esc).join(" · ")}</p>`;
+    ? `<h3>${esc(f0.s || f0.c)} <small>· ${s.films.length} obras</small></h3><ul>${s.films.map(f => `<li>${esc(f.t)}${ficha(f)}${f.d || f.fd ? ` <span>· ${[f.d, f.fd].filter(Boolean).map(esc).join(" · ")}</span>` : ""}</li>`).join("")}</ul>`
+    : `<h3>${esc(f0.t)}${ficha(f0)}</h3><p class="by">${[f0.d, f0.p, f0.fd].filter(Boolean).map(esc).join(" · ")}</p>`;
   return `<article class="card${on ? " on" : ""}"><img src="img/${f0.id}.jpg" alt="" loading="lazy">
     <div class="info"><p class="when"><b>${s.time}${s.dur ? "–" + endTime(s) : ""}</b>${s.dur ? `<span class="dur">${s.dur} min</span> · ` : ""}${esc(s.venue)}${s.estado && s.estado !== "Confirmada" ? ` <span class="estado">${esc(s.estado)}</span>` : ""}</p>${body}<div class="tags">${tags}</div>
     ${clash ? `<p class="clash">Choca con “${esc(clash.films.length > 1 ? clash.films[0].s : clash.films[0].t)}” (${clash.time}–${endTime(clash)})</p>` : ""}</div>
