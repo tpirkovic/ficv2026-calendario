@@ -171,6 +171,7 @@ footer a { color: inherit; }
     <button class="btn" id="pdf">Descargar como PDF</button>
     <a class="btn alt" id="pdfReady" hidden></a>
     <button class="btn ghost" id="share">Compartir mi selección</button>
+    <button class="btn ghost" id="clear">Borrar todo</button>
     <button class="btn ghost only-android" id="dlIcs">Descargar archivo .ics</button>
     <p><span class="not-android"><b>Agregar a mi calendario</b> descarga un archivo .ics: al abrirlo en iPhone, Mac u Outlook se agregan todas las funciones. En Google Calendar en el computador: Configuración → Importar.</span>
     <span class="only-android"><b>Agregar a Google Calendar</b> abre una función a la vez: guárdala, vuelve aquí y toca de nuevo para la siguiente. Si usas otro calendario (por ejemplo, el de Samsung), descarga el archivo .ics.</span>
@@ -192,6 +193,7 @@ footer a { color: inherit; }
 </div>
 
 <script src="data.js"></script>
+<script src="extras.js"></script>
 <script src="ics.js"></script>
 <script>
 const DAYS = ["Lunes 12", "Martes 13", "Miércoles 14", "Jueves 15", "Viernes 16", "Sábado 17", "Domingo 18"];
@@ -200,7 +202,7 @@ const CAT = { // color de fondo, color de texto (paleta del logo + derivados)
   "Muestra de Cine Contemporáneo": ["#2F6F6B", "#fff"], "Muestra de Cine Chileno": ["#3B5A9A", "#fff"],
   "Cineastas en Foco": ["#7A3E6E", "#fff"], "Muestra Contraplanos de la Historia": ["#8A5A2B", "#fff"],
   "Nuevas Narrativas": ["#C98A1A", "#1F1E21"], "Pásate una Película": ["#E9A49F", "#1F1E21"],
-  "Actividades Paralelas": ["#8C8A84", "#fff"], "Ceremonias": ["#F0E04A", "#1F1E21"],
+  "Actividades Paralelas": ["#8C8A84", "#fff"], "Ceremonias": ["#F0E04A", "#1F1E21"], "Premiación": ["#1F1E21", "#E5B93C"],
 };
 const ACC = { "Entrada Liberada": "Liberada", "Con Entrada o Acreditación": "Entrada / Acreditación",
   "Con Inscripción Previa": "Inscripción previa", "Solo con Invitación": "Solo invitación" };
@@ -212,6 +214,10 @@ for (const [id, t, d, c, s, a, p, fs, fd] of FILMS) for (const f of fs) {
   const key = `${day}|${hhmm}|${venue}`;
   if (!byKey.has(key)) { const [dur, estado] = SESSIONS[f] || []; byKey.set(key, { key, day, time: hhmm, venue, dur, estado, films: [] }); }
   byKey.get(key).films.push({ id, t, d, c, s, a, p, fd: fd && fd.replace(/'\s*$/, " min") }); // "104'" -> "104 min"
+}
+for (const [day, time, venue, dur, t] of EXTRAS) { // funciones que solo están en la grilla impresa
+  const key = `${day}|${time}|${venue}`;
+  if (!byKey.has(key)) byKey.set(key, { key, day, time, venue, dur, films: [{ id: "ganadora", extra: true, t, d: "", c: "Premiación", s: "Función de películas premiadas", a: [], p: "", fd: "" }] });
 }
 const SLOTS = [...byKey.values()].sort((x, y) => DAYS.indexOf(x.day) - DAYS.indexOf(y.day) || x.time.localeCompare(y.time) || x.venue.localeCompare(y.venue));
 // Código corto y estable por función (hash de día|hora|sala), para que los enlaces compartidos
@@ -382,6 +388,15 @@ $("pdf").onclick = async () => {
   } catch { toast("No se pudo generar el PDF. Revisa tu conexión e intenta de nuevo."); }
   finally { host.remove(); btn.disabled = false; btn.textContent = "Descargar como PDF"; }
 };
+let clearTimer;
+$("clear").onclick = () => { // dos toques para evitar borrar por error
+  if ($("clear").dataset.sure) {
+    clearTimeout(clearTimer); picks.clear(); savePicks(); store.set("ficv-gcal:" + user.toLowerCase(), []);
+    toast("Agenda vaciada"); render(); return;
+  }
+  $("clear").dataset.sure = 1; $("clear").textContent = `¿Borrar las ${picks.size} funciones? Toca de nuevo`;
+  clearTimer = setTimeout(() => { delete $("clear").dataset.sure; $("clear").textContent = "Borrar todo"; }, 4000);
+};
 $("share").onclick = async () => {
   const url = `${location.origin}${location.pathname}#s=${[...picks].map(tok).join(".")}&n=${encodeURIComponent(user)}`;
   track("compartir");
@@ -406,7 +421,7 @@ function render() {
   $("agendaBtn").hidden = view === "mine";
   const mine = view === "mine", friend = view === "friend", agenda = mine || friend;
   $("mineActions").hidden = !mine || !picks.size;
-  if (mine) $("dl").textContent = dlLabel();
+  if (mine) { $("dl").textContent = dlLabel(); delete $("clear").dataset.sure; $("clear").textContent = "Borrar todo"; }
   $("back").hidden = !agenda;
   $("filters").hidden = agenda;
   $("login").hidden = !!user || friend;
@@ -451,8 +466,8 @@ function gcalUrl(s) { // un evento suelto en Google Calendar (sirve en Android, 
 
 const LINK_ICON = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>`;
 const fichaUrl = f => `https://33.ficvaldivia.cl/ficha?recordId=${encodeURIComponent(f.id)}`;
-const ficha = f => ` <a class="ficha" href="${fichaUrl(f)}" target="_blank" rel="noopener" title="Ver ficha en el sitio del festival" aria-label="Ficha de ${esc(f.t)}">${LINK_ICON}</a>`;
-const titulo = f => `<a class="tlink" href="${fichaUrl(f)}" target="_blank" rel="noopener" title="Ver ficha en el sitio del festival">${esc(f.t)}</a>`;
+const ficha = f => f.extra ? "" : ` <a class="ficha" href="${fichaUrl(f)}" target="_blank" rel="noopener" title="Ver ficha en el sitio del festival" aria-label="Ficha de ${esc(f.t)}">${LINK_ICON}</a>`;
+const titulo = f => f.extra ? esc(f.t) : `<a class="tlink" href="${fichaUrl(f)}" target="_blank" rel="noopener" title="Ver ficha en el sitio del festival">${esc(f.t)}</a>`;
 
 function card(s, clash) {
   const on = picks.has(s.key), f0 = s.films[0], many = s.films.length > 1;
